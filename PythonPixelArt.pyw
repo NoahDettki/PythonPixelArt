@@ -12,6 +12,7 @@ SIZE = (525, 370)
 WHITE = (255, 255, 255, 255)
 GRAY = (127, 127, 127, 255)
 BLACK = (0, 0, 0, 255)
+BLACK_50 = (0, 0, 0, 0)
 HIGHLIGHT = (66, 135, 245, 255)
 
 Tool = Enum('Tool', ['PENCIL', 'COMING SOON'])
@@ -49,6 +50,8 @@ class Canvas:
         surface.blit(self._surface, (self._x, self._y))
     def save_image(self):
         self._layers[0].save('myImage.png')
+    def get_rect(self):
+        return pygame.Rect(self._x, self._y, self._width, self._height)
 
 class ColorPicker:
     def __init__(self, x:int, y:int, picker_dimension:int, gap_width:int, slider_width:int):
@@ -144,7 +147,7 @@ screen = pygame.display.set_mode(SIZE, pygame.HWSURFACE | pygame.DOUBLEBUF | pyg
 # UI
 manager = pygame_gui.UIManager(SIZE)
 button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((0, 0), (100, 50)), text='Save Image', manager=manager)
-canvas = Canvas(10, 60, 300, 300, 30, 30)
+canvas = Canvas(10, 60, 300, 300, 15, 15)
 cp = ColorPicker(330, 210, 150, 15, 20)
 clock = pygame.time.Clock()
 is_running = True
@@ -163,6 +166,10 @@ while is_running:
             is_running = False
         # Mouse position
         mp = pygame.mouse.get_pos()
+        if canvas.get_rect().collidepoint(mp):
+            pygame.mouse.set_visible(False)
+        else:
+            pygame.mouse.set_visible(True)
         # Drawing on a canvas
         if event.type == pygame.MOUSEBUTTONDOWN:
             # Left mouse button
@@ -199,6 +206,11 @@ while is_running:
     # Canvas
     canvas.render(screen)
     cp.render(screen)
+    pencil_size = canvas._width / canvas._columns
+    if not pygame.mouse.get_visible():
+        pygame.draw.rect(screen, WHITE, pygame.Rect((mp[0] - pencil_size/2 - 1, mp[1] - pencil_size/2 - 1), (pencil_size + 2, pencil_size + 2)), 1)
+        pygame.draw.rect(screen, BLACK, pygame.Rect((mp[0] - pencil_size/2, mp[1] - pencil_size/2), (pencil_size, pencil_size)), 1)
+        pygame.draw.rect(screen, WHITE, pygame.Rect((mp[0] - pencil_size/2 + 1, mp[1] - pencil_size/2 + 1), (pencil_size - 2, pencil_size - 2)), 1)
     manager.update(time_delta)
     manager.draw_ui(screen)
     pygame.display.flip() # use update() if I only want to update specific surfaces.
