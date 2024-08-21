@@ -7,5 +7,7 @@ pygame-ce==2.5.1
 pygame_gui==0.6.12
 pyinstaller==6.9.0
 pyinstaller-hooks-contrib==2024.7
+pypiwin32==223
 python-i18n==0.3.9
-pywin32-ctypes==0.2.2
+pywin32==306
+pywin32-ctypes==0.2.3
