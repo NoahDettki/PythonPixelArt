@@ -6,9 +6,11 @@ from pygame.locals import *
 from PIL import Image
 from enum import Enum
 import colorsys
+from win32 import win32gui
+import win32con
 
 PATH = os.path.dirname(os.path.abspath(__file__))
-SIZE = (525, 370)
+SIZE_ON_STARTUP = (800, 600)
 WHITE = (255, 255, 255, 255)
 GRAY = (127, 127, 127, 255)
 BLACK = (0, 0, 0, 255)
@@ -139,13 +141,45 @@ class ColorPicker:
     def get_color(self) -> tuple:
         return (self._color.r, self._color.g, self._color.b)
 
+def wndProc(oldWndProc, draw_callback, hWnd, message, wParam, lParam):
+    '''sloth's solution from stackoverflow on how to remove graphic bugs while resizing the window'''
+    if message == win32con.WM_SIZE:
+        draw_callback()
+        win32gui.RedrawWindow(hWnd, None, None, win32con.RDW_INVALIDATE | win32con.RDW_ERASE)
+    return win32gui.CallWindowProc(oldWndProc, hWnd, message, wParam, lParam)
+
+def init_surfaces_with_current_resolution(resolution:tuple, is_first_init:bool):
+    '''Resizing the window brings the need to re-initialize all surfaces, that were created.'''
+    global screen, manager
+    screen = pygame.display.set_mode(resolution, pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.SRCALPHA | pygame.RESIZABLE)
+    if is_first_init:
+        manager = pygame_gui.UIManager(resolution)
+    else:
+        manager.set_window_resolution(resolution)
+        #manager.clear_and_reset()
+
+def render():
+    screen.fill((235, 226, 192))
+    # Canvas
+    canvas.render(screen)
+    cp.render(screen)
+    pencil_size = canvas._width / canvas._columns
+    if not pygame.mouse.get_visible():
+        pygame.draw.rect(screen, BLACK, pygame.Rect((mp[0] - pencil_size/2 - 1, mp[1] - pencil_size/2 - 1), (pencil_size + 2, pencil_size + 2)), 1)
+        pygame.draw.rect(screen, WHITE, pygame.Rect((mp[0] - pencil_size/2, mp[1] - pencil_size/2), (pencil_size, pencil_size)), 1)
+        #pygame.draw.rect(screen, WHITE, pygame.Rect((mp[0] - pencil_size/2 + 1, mp[1] - pencil_size/2 + 1), (pencil_size - 2, pencil_size - 2)), 1)
+    manager.update(time_delta)
+    manager.draw_ui(screen)
+    pygame.display.flip() # use update() if I only want to update specific surfaces.
+
 # INIT
 pygame.init()
 pygame.display.set_caption("Pyxel v0.1")
-screen = pygame.display.set_mode(SIZE, pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.SRCALPHA)
-
-# UI
-manager = pygame_gui.UIManager(SIZE)
+screen = None
+manager = None
+init_surfaces_with_current_resolution(SIZE_ON_STARTUP, True)
+oldWndProc = win32gui.SetWindowLong(win32gui.GetForegroundWindow(), win32con.GWL_WNDPROC, lambda *args: wndProc(oldWndProc, render, *args))
+# TODO: Some of the following line are better handled in the init_surfaces funciton
 button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((0, 0), (100, 50)), text='Save Image', manager=manager)
 canvas = Canvas(10, 60, 300, 300, 15, 15)
 cp = ColorPicker(330, 210, 150, 15, 20)
@@ -191,6 +225,10 @@ while is_running:
             if event.ui_element == button:
                 print("Saving image!")
                 canvas.save_image()
+        # Window resize
+        if event.type == pygame.VIDEORESIZE:
+            window_size = (event.w, event.h)
+            init_surfaces_with_current_resolution(window_size, False)
         manager.process_events(event)
     
     # COMPUTING
@@ -202,18 +240,7 @@ while is_running:
         cp.move_slider(cp.s2slider(mp))
 
     # RENDERING
-    screen.fill((235, 226, 192))
-    # Canvas
-    canvas.render(screen)
-    cp.render(screen)
-    pencil_size = canvas._width / canvas._columns
-    if not pygame.mouse.get_visible():
-        pygame.draw.rect(screen, WHITE, pygame.Rect((mp[0] - pencil_size/2 - 1, mp[1] - pencil_size/2 - 1), (pencil_size + 2, pencil_size + 2)), 1)
-        pygame.draw.rect(screen, BLACK, pygame.Rect((mp[0] - pencil_size/2, mp[1] - pencil_size/2), (pencil_size, pencil_size)), 1)
-        pygame.draw.rect(screen, WHITE, pygame.Rect((mp[0] - pencil_size/2 + 1, mp[1] - pencil_size/2 + 1), (pencil_size - 2, pencil_size - 2)), 1)
-    manager.update(time_delta)
-    manager.draw_ui(screen)
-    pygame.display.flip() # use update() if I only want to update specific surfaces.
+    render()
 
 # QUIT PYGAME
 pygame.quit()
